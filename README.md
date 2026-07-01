@@ -85,13 +85,6 @@ npm run build
 - Question editor modal
 - Student exam flow with timer and review
 
-## GitHub Repository Details
-
-If you want to set the repository metadata in GitHub settings, use:
-
-- Description: `A modern full-stack quiz application for creating exams, managing questions, tracking attempts, and reviewing results.`
-- Topics: `react`, `bootstrap`, `nodejs`, `express`, `mongodb`, `redux`, `jwt`, `quiz-app`, `exam-management`, `full-stack`
-
 ## Notes
 
 - Do not commit `server/.env`
