@@ -33,5 +33,31 @@ const examSchema = new mongoose.Schema(
   }
 );
 
+examSchema.pre("findOneAndDelete", async function (next) {
+  try {
+    const session = this.getOptions().session;
+    const examId = this.getFilter()?._id;
+    if (examId) {
+      const Question = mongoose.model("questions");
+      const Report = mongoose.model("reports");
+
+      const questionDelete = Question.deleteMany({ exam: examId });
+      const reportDelete = Report.deleteMany({ exam: examId });
+
+      if (session) {
+        questionDelete.session(session);
+        reportDelete.session(session);
+      }
+
+      await questionDelete;
+      await reportDelete;
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 const Exam = mongoose.model("exams", examSchema);
 module.exports = Exam;
