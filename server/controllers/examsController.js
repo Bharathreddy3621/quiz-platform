@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Exam = require("../models/examModel");
 const Question = require("../models/questionModel");
+const User = require("../models/userModel");
 const { sendError, sendFailure, sendSuccess } = require("../utils/apiResponse");
 
 const addExam = async (req, res) => {
@@ -31,7 +32,29 @@ const getAllExams = async (req, res) => {
 
 const getExamById = async (req, res) => {
   try {
-    const exam = await Exam.findById(req.body.examId).populate("questions");
+    const user = await User.findById(req.body.userId).select("isAdmin");
+    if (!user) {
+      return sendFailure(res, "User not found", undefined, 200);
+    }
+
+    const examQuery = Exam.findById(req.body.examId).select(
+      "name duration category totalMarks passingMarks questions"
+    );
+
+    if (user.isAdmin) {
+      examQuery.populate("questions");
+    } else {
+      examQuery.populate({
+        path: "questions",
+        select: "name options",
+      });
+    }
+
+    const exam = await examQuery;
+    if (!exam) {
+      return sendFailure(res, "Exam not found", undefined, 200);
+    }
+
     sendSuccess(res, "Exam fetched successfully", exam);
   } catch (error) {
     sendError(res, error);
@@ -53,7 +76,15 @@ const editExamById = async (req, res) => {
       return sendFailure(res, "Exam already exists", undefined, 200);
     }
 
-    await Exam.findByIdAndUpdate(req.body.examId, req.body);
+    const updatePayload = {
+      name: req.body.name,
+      duration: req.body.duration,
+      category: req.body.category,
+      totalMarks: req.body.totalMarks,
+      passingMarks: req.body.passingMarks,
+    };
+
+    await Exam.findByIdAndUpdate(req.body.examId, updatePayload);
     sendSuccess(res, "Exam edited successfully");
   } catch (error) {
     sendError(res, error);
@@ -118,7 +149,13 @@ const editQuestionInExam = async (req, res) => {
       return sendFailure(res, "Exam not found", undefined, 200);
     }
 
-    await Question.findByIdAndUpdate(req.body.questionId, req.body);
+    const updatePayload = {
+      name: req.body.name,
+      correctOption: req.body.correctOption,
+      options: req.body.options,
+    };
+
+    await Question.findByIdAndUpdate(req.body.questionId, updatePayload);
     sendSuccess(res, "Question edited successfully");
   } catch (error) {
     sendError(res, error);

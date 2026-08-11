@@ -50,7 +50,7 @@ const loginUser = async (req, res) => {
 
 const getUserInfo = async (req, res) => {
   try {
-    const user = await User.findById(req.body.userId);
+    const user = await User.findById(req.body.userId).select("-password");
     sendSuccess(res, "User info fetched successfully", user);
   } catch (error) {
     sendError(res, error);

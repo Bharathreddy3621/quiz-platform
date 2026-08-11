@@ -1,28 +1,61 @@
 const Exam = require("../models/examModel");
 const Report = require("../models/reportModel");
 const User = require("../models/userModel");
-const { sendError, sendSuccess } = require("../utils/apiResponse");
+const { sendError, sendFailure, sendSuccess } = require("../utils/apiResponse");
+
+const escapeRegex = (value = "") =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const addReport = async (req, res) => {
   try {
-    const exam = await Exam.findById(req.body.exam);
+    const exam = await Exam.findById(req.body.exam).populate("questions");
     if (!exam) {
       return sendFailure(res, "Exam not found", undefined, 200);
     }
 
-    const userId = req.body.userId || req.body.user;
-    const user = await User.findById(userId);
+    const user = await User.findById(req.body.userId);
     if (!user) {
       return sendFailure(res, "User not found", undefined, 200);
     }
 
-    const newReport = new Report({
-      ...req.body,
-      user: user._id,
-    });
-    await newReport.save();
+    const selectedOptions = req.body.selectedOptions || {};
+    const answers = (exam.questions || []).map((question, index) => {
+      const selectedOption = selectedOptions[index];
+      const correctOption = question.correctOption;
+      const isCorrect = selectedOption === correctOption;
 
-    sendSuccess(res, "Attempt added successfully");
+      return {
+        question: question._id,
+        questionText: question.name,
+        selectedOption: selectedOption || null,
+        selectedAnswer: selectedOption ? question.options?.[selectedOption] : null,
+        correctOption,
+        correctAnswer: question.options?.[correctOption] || null,
+        isCorrect,
+      };
+    });
+
+    const correctAnswers = answers.filter((answer) => answer.isCorrect);
+    const wrongAnswers = answers.filter((answer) => !answer.isCorrect);
+    const score = correctAnswers.length;
+    const verdict = score >= exam.passingMarks ? "Pass" : "Fail";
+
+    const result = {
+      correctAnswers,
+      wrongAnswers,
+      answers,
+      score,
+      verdict,
+    };
+
+    const newReport = new Report({
+      user: user._id,
+      exam: exam._id,
+      result,
+    });
+    const savedReport = await newReport.save();
+
+    sendSuccess(res, "Attempt added successfully", savedReport);
   } catch (error) {
     sendError(res, error);
   }
@@ -31,10 +64,12 @@ const addReport = async (req, res) => {
 const getAllReports = async (req, res) => {
   try {
     const { examName, userName } = req.body;
+    const safeExamName = escapeRegex(examName);
+    const safeUserName = escapeRegex(userName);
 
     const exams = await Exam.find({
       name: {
-        $regex: examName,
+        $regex: new RegExp(safeExamName, "i"),
       },
     });
 
@@ -42,7 +77,7 @@ const getAllReports = async (req, res) => {
 
     const users = await User.find({
       name: {
-        $regex: userName,
+        $regex: new RegExp(safeUserName, "i"),
       },
     });
 

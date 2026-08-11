@@ -6,10 +6,12 @@ import { SetUser } from "../redux/usersSlice.js";
 import { HideLoading, ShowLoading } from "../redux/loaderSlice";
 import { showError } from "../utils/toast";
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, requireAdmin = false }) {
   const { user } = useSelector((state) => state.users);
   const [menu, setMenu] = useState([]);
   const [collapsed, setCollapsed] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -72,17 +74,26 @@ function ProtectedRoute({ children }) {
     try {
       dispatch(ShowLoading());
       const response = await getUserInfo();
-      dispatch(HideLoading());
       if (response.success) {
         dispatch(SetUser(response.data));
         setMenu(response.data.isAdmin ? adminMenu : userMenu);
+        if (requireAdmin && !response.data.isAdmin) {
+          showError("You are not authorized to access this page");
+          navigate("/", { replace: true });
+          return;
+        }
+
+        setIsAuthorized(true);
       } else {
         showError(response.message);
+        navigate("/login", { replace: true });
       }
     } catch (error) {
-      navigate("/login");
-      dispatch(HideLoading());
+      navigate("/login", { replace: true });
       showError(error.message);
+    } finally {
+      dispatch(HideLoading());
+      setIsCheckingAuth(false);
     }
   };
 
@@ -90,10 +101,15 @@ function ProtectedRoute({ children }) {
     if (localStorage.getItem("token")) {
       getUserData();
     } else {
-      navigate("/login");
+      setIsCheckingAuth(false);
+      navigate("/login", { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [requireAdmin]);
+
+  if (isCheckingAuth || !isAuthorized) {
+    return null;
+  }
 
   const activeRoute = location.pathname;
 

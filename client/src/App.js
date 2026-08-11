@@ -49,7 +49,7 @@ function App() {
           <Route
             path="/admin/exams"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin>
                 <Exams />
               </ProtectedRoute>
             }
@@ -57,7 +57,7 @@ function App() {
           <Route
             path="/admin/exams/add"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin>
                 <AddEditExam />
               </ProtectedRoute>
             }
@@ -65,7 +65,7 @@ function App() {
           <Route
             path="/admin/exams/edit/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin>
                 <AddEditExam />
               </ProtectedRoute>
             }
@@ -73,7 +73,7 @@ function App() {
           <Route
             path="/admin/reports"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin>
                 <AdminReports />
               </ProtectedRoute>
             }

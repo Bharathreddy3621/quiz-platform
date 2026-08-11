@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import { getExamById } from "../../../apicalls/exams";
 import { addReport } from "../../../apicalls/reports";
@@ -20,7 +20,6 @@ function WriteExam() {
   const params = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.users);
 
   const getExamData = async () => {
     try {
@@ -49,39 +48,16 @@ function WriteExam() {
     }
   };
 
-  const calculateResult = async () => {
+  const submitExam = async () => {
     try {
-      const correctAnswers = [];
-      const wrongAnswers = [];
-
-      questions.forEach((question, index) => {
-        if (question.correctOption === selectedOptions[index]) {
-          correctAnswers.push(question);
-        } else {
-          wrongAnswers.push(question);
-        }
-      });
-
-      let verdict = "Pass";
-      if (correctAnswers.length < examData.passingMarks) {
-        verdict = "Fail";
-      }
-
-      const tempResult = {
-        correctAnswers,
-        wrongAnswers,
-        verdict,
-      };
-
-      setResult(tempResult);
       dispatch(ShowLoading());
       const response = await addReport({
         exam: params.id,
-        result: tempResult,
-        user: user._id,
+        selectedOptions,
       });
       dispatch(HideLoading());
       if (response.success) {
+        setResult(response.data.result);
         setView("result");
       } else {
         showError(response.message);
@@ -109,7 +85,7 @@ function WriteExam() {
   useEffect(() => {
     if (timeUp && view === "questions") {
       clearTimer();
-      calculateResult();
+      submitExam();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeUp]);
@@ -268,13 +244,13 @@ function WriteExam() {
                   <div className="col-sm-6">
                     <div className="surface-card p-3 h-100">
                       <div className="text-muted small">Obtained Marks</div>
-                      <div className="h4 fw-bold mb-0">{result.correctAnswers.length}</div>
+                      <div className="h4 fw-bold mb-0">{result.correctAnswers?.length || 0}</div>
                     </div>
                   </div>
                   <div className="col-sm-6">
                     <div className="surface-card p-3 h-100">
                       <div className="text-muted small">Wrong Answers</div>
-                      <div className="h4 fw-bold mb-0">{result.wrongAnswers.length}</div>
+                      <div className="h4 fw-bold mb-0">{result.wrongAnswers?.length || 0}</div>
                     </div>
                   </div>
                   <div className="col-sm-6">
@@ -301,6 +277,7 @@ function WriteExam() {
                       setView("instructions");
                       setSelectedQuestionIndex(0);
                       setSelectedOptions({});
+                      setResult({});
                       setSecondsLeft(examData.duration);
                       setTimeUp(false);
                     }}
@@ -344,30 +321,28 @@ function WriteExam() {
 
         {view === "review" && (
           <div className="d-flex flex-column gap-3">
-            {questions.map((question, index) => {
-              const isCorrect = question.correctOption === selectedOptions[index];
+            {(result.answers || []).map((answer, index) => {
               return (
                 <div
-                  key={question._id || index}
+                  key={answer.question || index}
                   className={`surface-card p-4 border-start border-4 ${
-                    isCorrect ? "border-success" : "border-danger"
+                    answer.isCorrect ? "border-success" : "border-danger"
                   }`}
                 >
                   <div className="d-flex flex-wrap justify-content-between gap-3 mb-2">
                     <h3 className="h5 fw-bold mb-0">
-                      {index + 1}. {question.name}
+                      {index + 1}. {answer.questionText}
                     </h3>
-                    <span className={`badge rounded-pill ${isCorrect ? "text-bg-success" : "text-bg-danger"}`}>
-                      {isCorrect ? "Correct" : "Wrong"}
+                    <span className={`badge rounded-pill ${answer.isCorrect ? "text-bg-success" : "text-bg-danger"}`}>
+                      {answer.isCorrect ? "Correct" : "Wrong"}
                     </span>
                   </div>
                   <div className="text-muted mb-1">
-                    Submitted Answer: {selectedOptions[index]} -{" "}
-                    {question.options[selectedOptions[index]]}
+                    Submitted Answer: {answer.selectedOption || "Not answered"} -{" "}
+                    {answer.selectedAnswer || "Not answered"}
                   </div>
                   <div className="text-muted">
-                    Correct Answer: {question.correctOption} -{" "}
-                    {question.options[question.correctOption]}
+                    Correct Answer: {answer.correctOption} - {answer.correctAnswer}
                   </div>
                 </div>
               );
@@ -383,6 +358,7 @@ function WriteExam() {
                   setView("instructions");
                   setSelectedQuestionIndex(0);
                   setSelectedOptions({});
+                  setResult({});
                   setSecondsLeft(examData.duration);
                   setTimeUp(false);
                 }}
