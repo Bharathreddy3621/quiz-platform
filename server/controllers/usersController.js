@@ -38,9 +38,13 @@ const loginUser = async (req, res) => {
       return sendFailure(res, "Invalid password", undefined, 200);
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+    const token = jwt.sign(
+      { userId: user._id, isAdmin: user.isAdmin },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d",
+      }
+    );
 
     sendSuccess(res, "User logged in successfully", token);
   } catch (error) {
